@@ -1,4 +1,4 @@
-# apnichat
+# ApniChat
 
 A new Flutter project.
 
