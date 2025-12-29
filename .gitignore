@@ -43,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase config files (sensitive - do not commit)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Android local properties
+local.properties
+android/local.properties
