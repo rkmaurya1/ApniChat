@@ -1,0 +1,16 @@
+API_BASE_URL = "xxxx"
+MAPS_API_KEY = "xxxx"
+IOS_APP_STORE_ID = "6756038741"
+SUBSCRIPTION_MONTHLY_PRODUCT_ID = "cricket_go_premium_monthly_dev"
+SUBSCRIPTION_YEARLY_PRODUCT_ID = "cricket_go_premium_yearly_dev"
+SUPABASE_URL = "https://ondhgjusalarckomejcy.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_cQQ3SGuTL-9b698S8DcueQ_JKhlOIEi"
+ONESIGNAL_APP_ID = "a02cf38e-243b-490a-b929-b783e7106822";
+ONESIGNAL_REST_API_KEY = "os_v2_app_uawphdrehneqvojjw6b6oediejfmtn64xscu2m4yu6xcbcmq2i2u55f7fws4no77o762chawl6uktjuc6nxqfpuneatxjgrd6ghv5ya";
+AGORA_APP_ID = "4764d8550fde49e38b3d5d7af85537ab"
+AGORA_TOKEN_ENDPOINT = "https://generateagoratoken-rc4tnjk7tq-uc.a.run.app"
+# YouTube Live Streaming Configuration
+# Get YOUTUBE_STREAM_KEY from: https://studio.youtube.com → Create → Go live → Stream
+YOUTUBE_CHANNEL_HANDLE = "TryenoLive"
+# YOUTUBE_STREAM_KEY = "wh1j-y5f9-y860-muuw-40d3"
+YOUTUBE_STREAM_KEY = "x1bh-pm60-adab-t19m-0f7y"
