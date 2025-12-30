@@ -375,16 +375,19 @@ class HomeScreen extends StatelessWidget {
               return StreamBuilder<UserModel?>(
                 stream: authService.getUserDataStream(otherUserId),
                 builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData) {
+                  // Only show loading during initial connection
+                  if (userSnapshot.connectionState == ConnectionState.waiting) {
                     return const ListTile(
                       leading: CircularProgressIndicator(),
                     );
                   }
 
-                  UserModel? otherUser = userSnapshot.data;
-                  if (otherUser == null) {
+                  // If user doesn't exist (deleted from Firebase), hide this chat
+                  if (!userSnapshot.hasData || userSnapshot.data == null) {
                     return const SizedBox.shrink();
                   }
+
+                  UserModel otherUser = userSnapshot.data!;
 
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
