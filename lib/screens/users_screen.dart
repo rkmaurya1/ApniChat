@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import '../widgets/profile_avatar.dart';
+import '../utils/app_theme.dart';
 import 'chat_screen.dart';
 
 class UsersScreen extends StatefulWidget {
@@ -37,20 +38,24 @@ class _UsersScreenState extends State<UsersScreen> {
       appBar: AppBar(
         leading: Container(
           margin: const EdgeInsets.only(left: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
+          decoration: AppTheme.iconButtonDecoration,
           child: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF6366F1)),
+            icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor),
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.person_add_rounded, color: Color(0xFF6366F1)),
-            SizedBox(width: 8),
-            Text('New Chat'),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.person_add_rounded, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text('New Chat'),
           ],
         ),
       ),
@@ -59,34 +64,25 @@ class _UsersScreenState extends State<UsersScreen> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+              decoration: AppTheme.cardDecoration,
               child: TextField(
                 controller: _searchController,
+                style: const TextStyle(color: AppTheme.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Search users...',
-                  hintStyle: TextStyle(color: Colors.grey[500]),
+                  hintStyle: const TextStyle(color: AppTheme.textMuted),
                   prefixIcon: Container(
                     margin: const EdgeInsets.all(8),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                      color: AppTheme.primaryColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.search, color: Color(0xFF6366F1)),
+                    child: const Icon(Icons.search, color: AppTheme.primaryColor),
                   ),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, color: Color(0xFF6366F1)),
+                          icon: const Icon(Icons.clear, color: AppTheme.primaryColor),
                           onPressed: () {
                             _searchController.clear();
                             setState(() => _searchQuery = '');
@@ -141,13 +137,20 @@ class _UsersScreenState extends State<UsersScreen> {
                         Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                            gradient: AppTheme.primaryGradient,
                             shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withOpacity(0.3),
+                                blurRadius: 30,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
                           ),
                           child: const Icon(
                             Icons.person_search,
                             size: 64,
-                            color: Color(0xFF6366F1),
+                            color: Colors.white,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -156,7 +159,8 @@ class _UsersScreenState extends State<UsersScreen> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                            color: AppTheme.textPrimary,
+                            letterSpacing: -0.3,
                           ),
                         ),
                       ],
@@ -174,17 +178,7 @@ class _UsersScreenState extends State<UsersScreen> {
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
+                      decoration: AppTheme.cardDecoration,
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
@@ -207,16 +201,18 @@ class _UsersScreenState extends State<UsersScreen> {
                                 Stack(
                                   children: [
                                     Container(
+                                      padding: const EdgeInsets.all(3),
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            const Color(0xFF6366F1).withValues(alpha: 0.2),
-                                            const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                                          ],
-                                        ),
+                                        gradient: AppTheme.primaryGradient.scale(0.3),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppTheme.primaryColor.withOpacity(0.2),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
                                       ),
-                                      padding: const EdgeInsets.all(3),
                                       child: ProfileAvatar(
                                         photoUrl: user.photoUrl,
                                         userName: user.name,
@@ -231,12 +227,19 @@ class _UsersScreenState extends State<UsersScreen> {
                                           width: 16,
                                           height: 16,
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF10B981),
+                                            color: AppTheme.accentColor,
                                             shape: BoxShape.circle,
                                             border: Border.all(
-                                              color: Colors.white,
+                                              color: AppTheme.cardDark,
                                               width: 2.5,
                                             ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: AppTheme.accentColor.withOpacity(0.5),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
@@ -251,18 +254,19 @@ class _UsersScreenState extends State<UsersScreen> {
                                         user.name,
                                         style: const TextStyle(
                                           fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF1E293B),
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.textPrimary,
+                                          letterSpacing: -0.3,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 6),
                                       Text(
                                         user.email,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           fontSize: 13,
-                                          color: Colors.grey[600],
+                                          color: AppTheme.textSecondary,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -274,12 +278,16 @@ class _UsersScreenState extends State<UsersScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                                    color: AppTheme.primaryColor.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: AppTheme.primaryColor.withOpacity(0.3),
+                                      width: 1,
+                                    ),
                                   ),
                                   child: const Icon(
                                     Icons.chat_bubble_outline,
-                                    color: Color(0xFF6366F1),
+                                    color: AppTheme.primaryColor,
                                     size: 20,
                                   ),
                                 ),

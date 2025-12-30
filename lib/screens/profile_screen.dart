@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/realtime_storage_service.dart';
 import '../models/user_model.dart';
 import '../widgets/profile_avatar.dart';
+import '../utils/app_theme.dart';
 import 'login_screen.dart';
 import 'dart:async';
 
@@ -174,20 +175,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         leading: Container(
           margin: const EdgeInsets.only(left: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
+          decoration: AppTheme.iconButtonDecoration,
           child: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF6366F1)),
+            icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor),
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.person_rounded, color: Color(0xFF6366F1)),
-            SizedBox(width: 8),
-            Text('Profile'),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.person_rounded, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text('Profile'),
           ],
         ),
       ),
@@ -295,17 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 32),
             // Edit Profile Card
             Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
+              decoration: AppTheme.cardDecoration,
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
@@ -316,60 +311,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: AppTheme.textPrimary,
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 20),
                     TextField(
                       controller: _nameController,
+                      style: const TextStyle(color: AppTheme.textPrimary),
                       decoration: InputDecoration(
                         labelText: 'Name',
+                        labelStyle: const TextStyle(color: AppTheme.textSecondary),
                         hintText: 'Enter your name',
+                        hintStyle: const TextStyle(color: AppTheme.textMuted),
                         prefixIcon: Container(
                           margin: const EdgeInsets.all(8),
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                            color: AppTheme.primaryColor.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.person_outline, color: Color(0xFF6366F1)),
+                          child: const Icon(Icons.person_outline, color: AppTheme.primaryColor),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       enabled: false,
+                      style: const TextStyle(color: AppTheme.textSecondary),
                       decoration: InputDecoration(
                         labelText: 'Email',
+                        labelStyle: const TextStyle(color: AppTheme.textSecondary),
                         hintText: _currentUser!.email,
+                        hintStyle: const TextStyle(color: AppTheme.textMuted),
                         prefixIcon: Container(
                           margin: const EdgeInsets.all(8),
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                            color: AppTheme.primaryColor.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.email_outlined, color: Color(0xFF6366F1)),
+                          child: const Icon(Icons.email_outlined, color: AppTheme.primaryColor),
                         ),
                         filled: true,
-                        fillColor: const Color(0xFFF1F5F9),
+                        fillColor: AppTheme.surfaceDark,
                       ),
                     ),
                     const SizedBox(height: 24),
                     Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
+                      decoration: AppTheme.gradientButtonDecoration,
                       child: SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -410,15 +400,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Sign Out Card
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardDark,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                  color: const Color(0xFFEF4444).withOpacity(0.5),
                   width: 1.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: const Color(0xFFEF4444).withOpacity(0.2),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),

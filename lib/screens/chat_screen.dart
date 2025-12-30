@@ -5,6 +5,7 @@ import '../services/realtime_storage_service.dart';
 import '../models/message_model.dart';
 import '../models/user_model.dart';
 import '../utils/helpers.dart';
+import '../utils/app_theme.dart';
 import '../widgets/realtime_db_image.dart';
 import '../widgets/profile_avatar.dart';
 import 'dart:io';
@@ -226,12 +227,9 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         leading: Container(
           margin: const EdgeInsets.only(left: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
+          decoration: AppTheme.iconButtonDecoration,
           child: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF6366F1)),
+            icon: const Icon(Icons.arrow_back, color: AppTheme.primaryColor),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -242,12 +240,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF6366F1).withValues(alpha: 0.2),
-                        const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                      ],
-                    ),
+                    gradient: AppTheme.primaryGradient.scale(0.3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   padding: const EdgeInsets.all(2),
                   child: ProfileAvatar(
@@ -264,9 +264,16 @@ class _ChatScreenState extends State<ChatScreen> {
                       width: 12,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF10B981),
+                        color: AppTheme.accentColor,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                        border: Border.all(color: AppTheme.backgroundDark, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.accentColor.withOpacity(0.5),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -281,7 +288,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     widget.otherUser.name,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                      letterSpacing: -0.3,
                     ),
                   ),
                   Text(
@@ -293,8 +302,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       color: widget.otherUser.isOnline
-                          ? const Color(0xFF10B981)
-                          : Colors.grey[600],
+                          ? AppTheme.accentColor
+                          : AppTheme.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -329,13 +338,20 @@ class _ChatScreenState extends State<ChatScreen> {
                         Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                            gradient: AppTheme.primaryGradient,
                             shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withOpacity(0.3),
+                                blurRadius: 30,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
                           ),
                           child: const Icon(
                             Icons.chat_bubble_outline,
                             size: 64,
-                            color: Color(0xFF6366F1),
+                            color: Colors.white,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -344,15 +360,16 @@ class _ChatScreenState extends State<ChatScreen> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                            color: AppTheme.textPrimary,
+                            letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
+                        const Text(
                           'Start the conversation!',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[600],
+                            color: AppTheme.textSecondary,
                           ),
                         ),
                       ],
@@ -403,14 +420,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
-                                gradient: isMe
-                                    ? const LinearGradient(
-                                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      )
-                                    : null,
-                                color: isMe ? null : Colors.white,
+                                gradient: isMe ? AppTheme.messageGradient : null,
+                                color: isMe ? null : AppTheme.cardDark,
+                                border: isMe
+                                    ? null
+                                    : Border.all(color: AppTheme.borderDark, width: 1),
                                 borderRadius: BorderRadius.only(
                                   topLeft: const Radius.circular(20),
                                   topRight: const Radius.circular(20),
@@ -420,10 +434,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                 boxShadow: [
                                   BoxShadow(
                                     color: isMe
-                                        ? const Color(0xFF6366F1).withValues(alpha: 0.2)
-                                        : Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
+                                        ? AppTheme.primaryColor.withOpacity(0.3)
+                                        : Colors.black.withOpacity(0.2),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
@@ -445,7 +459,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     Text(
                                       message.text!,
                                       style: TextStyle(
-                                        color: isMe ? Colors.white : const Color(0xFF1E293B),
+                                        color: isMe ? Colors.white : AppTheme.textPrimary,
                                         fontSize: 15,
                                         height: 1.4,
                                       ),
@@ -459,8 +473,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: isMe
-                                              ? Colors.white.withValues(alpha: 0.8)
-                                              : Colors.grey[600],
+                                              ? Colors.white.withOpacity(0.8)
+                                              : AppTheme.textSecondary,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -470,8 +484,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                           message.isRead ? Icons.done_all_rounded : Icons.done_rounded,
                                           size: 16,
                                           color: message.isRead
-                                              ? const Color(0xFF10B981)
-                                              : Colors.white.withValues(alpha: 0.7),
+                                              ? AppTheme.accentColor
+                                              : Colors.white.withOpacity(0.7),
                                         ),
                                       ],
                                     ],
@@ -492,10 +506,13 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.surfaceDark,
+              border: Border(
+                top: BorderSide(color: AppTheme.borderDark, width: 1),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Colors.black.withOpacity(0.2),
                   spreadRadius: 0,
                   blurRadius: 10,
                   offset: const Offset(0, -2),
@@ -506,10 +523,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(
                 children: [
                   Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    decoration: AppTheme.iconButtonDecoration,
                     child: IconButton(
                       icon: _isUploadingImage
                           ? const SizedBox(
@@ -517,10 +531,10 @@ class _ChatScreenState extends State<ChatScreen> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
                               ),
                             )
-                          : const Icon(Icons.image_outlined, color: Color(0xFF6366F1)),
+                          : const Icon(Icons.image_outlined, color: AppTheme.primaryColor),
                       onPressed: _isUploadingImage ? null : _sendImage,
                     ),
                   ),
@@ -529,16 +543,18 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: AppTheme.cardDark,
+                        border: Border.all(color: AppTheme.borderDark, width: 1),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: TextField(
                         controller: _messageController,
-                        decoration: InputDecoration(
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(
                           hintText: 'Type a message...',
-                          hintStyle: TextStyle(color: Colors.grey[500]),
+                          hintStyle: TextStyle(color: AppTheme.textMuted),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                          contentPadding: EdgeInsets.symmetric(vertical: 10),
                         ),
                         maxLines: null,
                         textCapitalization: TextCapitalization.sentences,
@@ -546,21 +562,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
+                    decoration: AppTheme.gradientButtonDecoration,
                     child: IconButton(
                       icon: const Icon(Icons.send_rounded, color: Colors.white),
                       onPressed: _sendMessage,
