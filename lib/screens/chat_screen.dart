@@ -392,6 +392,44 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _startVoiceCall() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.call, color: Colors.white),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text('Calling ${widget.otherUser.name}...'),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+        backgroundColor: AppTheme.primaryColor,
+      ),
+    );
+    // TODO: Implement voice call functionality
+  }
+
+  void _startVideoCall() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.videocam, color: Colors.white),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text('Starting video call with ${widget.otherUser.name}...'),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+        backgroundColor: AppTheme.primaryColor,
+      ),
+    );
+    // TODO: Implement video call functionality
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -483,6 +521,26 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 4),
+            decoration: AppTheme.iconButtonDecoration,
+            child: IconButton(
+              icon: const Icon(Icons.call, color: AppTheme.primaryColor, size: 22),
+              onPressed: _startVoiceCall,
+              tooltip: 'Voice Call',
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            decoration: AppTheme.iconButtonDecoration,
+            child: IconButton(
+              icon: const Icon(Icons.videocam, color: AppTheme.primaryColor, size: 22),
+              onPressed: _startVideoCall,
+              tooltip: 'Video Call',
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [
