@@ -745,77 +745,95 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   Row(
                     children: [
-                      Container(
-                        decoration: AppTheme.iconButtonDecoration,
-                        child: IconButton(
-                          icon: _isUploadingImage
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-                                  ),
-                                )
-                              : const Icon(Icons.image_outlined, color: AppTheme.primaryColor),
-                          onPressed: _isUploadingImage || _isRecording || _isUploadingVoice
-                              ? null
-                              : _sendImage,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      GestureDetector(
-                        onLongPress: _isRecording || _isUploadingVoice ? null : _startRecording,
-                        onTap: _isRecording ? () => _stopRecording(send: true) : null,
-                        child: Container(
-                          decoration: _isRecording
-                              ? BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                )
-                              : AppTheme.iconButtonDecoration,
-                          padding: const EdgeInsets.all(12),
-                          child: _isUploadingVoice
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : Icon(
-                                  _isRecording ? Icons.stop : Icons.mic,
-                                  color: _isRecording ? Colors.white : AppTheme.primaryColor,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppTheme.cardDark,
                             border: Border.all(color: AppTheme.borderDark, width: 1),
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(28),
                           ),
-                          child: TextField(
-                            controller: _messageController,
-                            style: const TextStyle(color: AppTheme.textPrimary),
-                            decoration: const InputDecoration(
-                              hintText: 'Type a message...',
-                              hintStyle: TextStyle(color: AppTheme.textMuted),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            maxLines: null,
-                            textCapitalization: TextCapitalization.sentences,
-                            onSubmitted: (_) => _sendMessage(),
-                            enabled: !_isRecording && !_isUploadingVoice,
+                          child: Row(
+                            children: [
+                              // Image picker button
+                              IconButton(
+                                icon: _isUploadingImage
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                                        ),
+                                      )
+                                    : const Icon(Icons.image_outlined,
+                                        color: AppTheme.textSecondary,
+                                        size: 24),
+                                onPressed: _isUploadingImage || _isRecording || _isUploadingVoice
+                                    ? null
+                                    : _sendImage,
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(),
+                              ),
+                              const SizedBox(width: 4),
+                              // Mic button
+                              GestureDetector(
+                                onLongPress: _isRecording || _isUploadingVoice ? null : _startRecording,
+                                onTap: _isRecording ? () => _stopRecording(send: true) : null,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: _isRecording
+                                      ? const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        )
+                                      : null,
+                                  child: _isUploadingVoice
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                                          ),
+                                        )
+                                      : Icon(
+                                          _isRecording ? Icons.stop : Icons.mic,
+                                          color: _isRecording ? Colors.white : AppTheme.textSecondary,
+                                          size: 24,
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Text field
+                              Expanded(
+                                child: TextField(
+                                  controller: _messageController,
+                                  style: const TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 15,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    hintText: 'Type a message...',
+                                    hintStyle: TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 15,
+                                    ),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                                  ),
+                                  maxLines: null,
+                                  textCapitalization: TextCapitalization.sentences,
+                                  onSubmitted: (_) => _sendMessage(),
+                                  enabled: !_isRecording && !_isUploadingVoice,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
+                      // Send button
                       Container(
                         decoration: AppTheme.gradientButtonDecoration,
                         child: IconButton(
