@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
 import '../services/chat_service.dart';
 import '../services/realtime_storage_service.dart';
 import '../models/message_model.dart';
@@ -8,6 +11,7 @@ import '../utils/helpers.dart';
 import '../utils/app_theme.dart';
 import '../widgets/realtime_db_image.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/voice_message_player.dart';
 import 'dart:io';
 
 class ChatScreen extends StatefulWidget {
@@ -30,13 +34,19 @@ class _ChatScreenState extends State<ChatScreen> {
   final _realtimeStorageService = RealtimeStorageService();
   final _scrollController = ScrollController();
   final _imagePicker = ImagePicker();
+  final _audioRecorder = AudioRecorder();
   bool _isUploadingImage = false;
+  bool _isRecording = false;
+  bool _isUploadingVoice = false;
+  Duration _recordingDuration = Duration.zero;
+  String? _recordingPath;
   final Set<String> _markedAsRead = {}; // Track which messages we've already marked as read
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _audioRecorder.dispose();
     super.dispose();
   }
 
@@ -133,6 +143,167 @@ class _ChatScreenState extends State<ChatScreen> {
                 : const Color(0xFF6366F1),
       ),
     );
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      // Request microphone permission
+      final status = await Permission.microphone.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Microphone permission is required')),
+          );
+        }
+        return;
+      }
+
+      // Get temporary directory
+      final directory = await getTemporaryDirectory();
+      final path = '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      // Start recording
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+        ),
+        path: path,
+      );
+
+      setState(() {
+        _isRecording = true;
+        _recordingPath = path;
+        _recordingDuration = Duration.zero;
+      });
+
+      // Update duration every second
+      _updateRecordingDuration();
+    } catch (e) {
+      debugPrint('Error starting recording: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to start recording: $e')),
+        );
+      }
+    }
+  }
+
+  void _updateRecordingDuration() {
+    if (!_isRecording) return;
+
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted && _isRecording) {
+        setState(() {
+          _recordingDuration = _recordingDuration + const Duration(seconds: 1);
+        });
+        _updateRecordingDuration();
+      }
+    });
+  }
+
+  Future<void> _stopRecording({bool send = true}) async {
+    try {
+      if (!_isRecording) return;
+
+      final path = await _audioRecorder.stop();
+      if (path == null) {
+        throw Exception('Recording path is null');
+      }
+
+      setState(() {
+        _isRecording = false;
+        _recordingPath = path;
+      });
+
+      if (send && _recordingPath != null) {
+        await _sendVoiceMessage(File(_recordingPath!));
+      } else if (_recordingPath != null) {
+        // Delete the recording if not sending
+        try {
+          await File(_recordingPath!).delete();
+        } catch (e) {
+          debugPrint('Error deleting recording: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error stopping recording: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to stop recording: $e')),
+        );
+      }
+      setState(() {
+        _isRecording = false;
+      });
+    }
+  }
+
+  Future<void> _sendVoiceMessage(File audioFile) async {
+    try {
+      setState(() => _isUploadingVoice = true);
+      _showUploadProgress('🎤 Processing voice...');
+
+      _showUploadProgress('☁️ Uploading voice...');
+      String voiceId = await _realtimeStorageService.uploadVoiceToRealtimeDB(
+        audioFile,
+        widget.currentUserId,
+      );
+
+      _showUploadProgress('📝 Creating message...');
+      String voiceRef = 'rtdb://${widget.currentUserId}/$voiceId';
+
+      _showUploadProgress('📤 Sending...');
+      await _chatService.sendMessage(
+        senderId: widget.currentUserId,
+        receiverId: widget.otherUser.uid,
+        voiceUrl: voiceRef,
+      );
+
+      _showUploadProgress('✅ Voice message sent!', isSuccess: true);
+      _scrollToBottom();
+
+      // Clean up temporary file
+      try {
+        await audioFile.delete();
+      } catch (e) {
+        debugPrint('Error deleting temp file: $e');
+      }
+    } catch (e) {
+      debugPrint('Error sending voice message: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.white),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text('❌ Failed: ${e.toString()}'),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 4),
+            backgroundColor: const Color(0xFFEF4444),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _sendVoiceMessage(audioFile),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingVoice = false;
+          _recordingPath = null;
+          _recordingDuration = Duration.zero;
+        });
+      }
+    }
   }
 
   Future<void> _sendImage() async {
@@ -455,6 +626,12 @@ class _ChatScreenState extends State<ChatScreen> {
                                         fit: BoxFit.cover,
                                       ),
                                     )
+                                  else if (message.type == MessageType.voice &&
+                                      message.voiceUrl != null)
+                                    VoiceMessagePlayer(
+                                      voiceRef: message.voiceUrl!,
+                                      isMe: isMe,
+                                    )
                                   else if (message.text != null)
                                     Text(
                                       message.text!,
@@ -520,55 +697,133 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ),
             child: SafeArea(
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    decoration: AppTheme.iconButtonDecoration,
-                    child: IconButton(
-                      icon: _isUploadingImage
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-                              ),
-                            )
-                          : const Icon(Icons.image_outlined, color: AppTheme.primaryColor),
-                      onPressed: _isUploadingImage ? null : _sendImage,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.cardDark,
-                        border: Border.all(color: AppTheme.borderDark, width: 1),
-                        borderRadius: BorderRadius.circular(24),
+                  if (_isRecording)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      color: AppTheme.cardDark,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            Helpers.formatDuration(_recordingDuration),
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () => _stopRecording(send: false),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () => _stopRecording(send: true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Send'),
+                          ),
+                        ],
                       ),
-                      child: TextField(
-                        controller: _messageController,
-                        style: const TextStyle(color: AppTheme.textPrimary),
-                        decoration: const InputDecoration(
-                          hintText: 'Type a message...',
-                          hintStyle: TextStyle(color: AppTheme.textMuted),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  Row(
+                    children: [
+                      Container(
+                        decoration: AppTheme.iconButtonDecoration,
+                        child: IconButton(
+                          icon: _isUploadingImage
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                                  ),
+                                )
+                              : const Icon(Icons.image_outlined, color: AppTheme.primaryColor),
+                          onPressed: _isUploadingImage || _isRecording || _isUploadingVoice
+                              ? null
+                              : _sendImage,
                         ),
-                        maxLines: null,
-                        textCapitalization: TextCapitalization.sentences,
-                        onSubmitted: (_) => _sendMessage(),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: AppTheme.gradientButtonDecoration,
-                    child: IconButton(
-                      icon: const Icon(Icons.send_rounded, color: Colors.white),
-                      onPressed: _sendMessage,
-                    ),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onLongPress: _isRecording || _isUploadingVoice ? null : _startRecording,
+                        onTap: _isRecording ? () => _stopRecording(send: true) : null,
+                        child: Container(
+                          decoration: _isRecording
+                              ? BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                )
+                              : AppTheme.iconButtonDecoration,
+                          padding: const EdgeInsets.all(12),
+                          child: _isUploadingVoice
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Icon(
+                                  _isRecording ? Icons.stop : Icons.mic,
+                                  color: _isRecording ? Colors.white : AppTheme.primaryColor,
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardDark,
+                            border: Border.all(color: AppTheme.borderDark, width: 1),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: TextField(
+                            controller: _messageController,
+                            style: const TextStyle(color: AppTheme.textPrimary),
+                            decoration: const InputDecoration(
+                              hintText: 'Type a message...',
+                              hintStyle: TextStyle(color: AppTheme.textMuted),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            maxLines: null,
+                            textCapitalization: TextCapitalization.sentences,
+                            onSubmitted: (_) => _sendMessage(),
+                            enabled: !_isRecording && !_isUploadingVoice,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        decoration: AppTheme.gradientButtonDecoration,
+                        child: IconButton(
+                          icon: const Icon(Icons.send_rounded, color: Colors.white),
+                          onPressed: _isRecording || _isUploadingVoice ? null : _sendMessage,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

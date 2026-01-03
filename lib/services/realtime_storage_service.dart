@@ -139,4 +139,69 @@ class RealtimeStorageService {
       return null;
     });
   }
+
+  /// Upload voice message as Base64 to Realtime Database
+  /// Returns the voice ID which can be used to retrieve the voice
+  Future<String> uploadVoiceToRealtimeDB(File audioFile, String userId) async {
+    try {
+      // Validate file exists
+      if (!await audioFile.exists()) {
+        throw Exception('Audio file does not exist');
+      }
+
+      // Read audio as bytes
+      final bytes = await audioFile.readAsBytes();
+
+      // Convert to Base64
+      String base64Audio = base64Encode(bytes);
+
+      // Generate unique voice ID
+      String voiceId = _uuid.v4();
+
+      // Create voice data
+      Map<String, dynamic> voiceData = {
+        'id': voiceId,
+        'uploadedBy': userId,
+        'uploadedAt': ServerValue.timestamp,
+        'base64': base64Audio,
+        'size': bytes.length,
+      };
+
+      // Save to Realtime Database
+      await _database
+          .ref()
+          .child('chat_voices')
+          .child(userId)
+          .child(voiceId)
+          .set(voiceData);
+
+      debugPrint('Voice uploaded to Realtime DB: $voiceId');
+
+      return voiceId;
+    } catch (e) {
+      debugPrint('Voice upload error: $e');
+      throw Exception('Failed to upload voice: ${e.toString()}');
+    }
+  }
+
+  /// Get voice Base64 from Realtime Database
+  Future<String?> getVoiceBase64(String userId, String voiceId) async {
+    try {
+      final snapshot = await _database
+          .ref()
+          .child('chat_voices')
+          .child(userId)
+          .child(voiceId)
+          .get();
+
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        return data['base64'] as String?;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting voice: $e');
+      return null;
+    }
+  }
 }
