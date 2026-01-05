@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:screen_protector/screen_protector.dart';
 import 'services/auth_service.dart';
 import 'services/messaging_service.dart';
 import 'screens/login_screen.dart';
@@ -16,17 +17,24 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase
   await Firebase.initializeApp();
-  
+
   // Set up background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  
+
   // Initialize Firebase Messaging
   final messagingService = MessagingService();
   await messagingService.initialize();
-  
+
+  // Enable screenshot and screen recording protection
+  try {
+    await ScreenProtector.protectDataLeakageOn();
+  } catch (e) {
+    debugPrint('Screen protection not supported on this platform: $e');
+  }
+
   runApp(const MyApp());
 }
 

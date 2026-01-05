@@ -187,5 +187,147 @@ class ChatService {
 
     return controller.stream;
   }
+
+  // Update chat retention mode
+  Future<void> updateChatRetentionMode(
+    String userId1,
+    String userId2,
+    ChatRetentionMode mode,
+  ) async {
+    String chatId = _getChatId(userId1, userId2);
+    await _firestore.collection('chats').doc(chatId).update({
+      'retentionMode': mode.toValue(),
+    });
+  }
+
+  // Get current chat retention mode
+  Future<ChatRetentionMode> getChatRetentionMode(
+    String userId1,
+    String userId2,
+  ) async {
+    String chatId = _getChatId(userId1, userId2);
+    DocumentSnapshot doc = await _firestore.collection('chats').doc(chatId).get();
+
+    if (!doc.exists) return ChatRetentionMode.allTime;
+
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return ChatRetentionModeExtension.fromValue(data['retentionMode']);
+  }
+
+  // Delete messages that are seen and both users have exited (for seenAndDelete mode)
+  Future<void> deleteSeenMessages(String userId1, String userId2) async {
+    try {
+      String chatId = _getChatId(userId1, userId2);
+
+      // Get all messages that are read
+      QuerySnapshot messagesSnapshot = await _firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .where('isRead', isEqualTo: true)
+          .get();
+
+      // Delete in batch
+      WriteBatch batch = _firestore.batch();
+      for (var doc in messagesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to delete seen messages: $e');
+    }
+  }
+
+  // Delete messages older than 24 hours (for hour24 mode)
+  Future<void> deleteOldMessages(String userId1, String userId2) async {
+    try {
+      String chatId = _getChatId(userId1, userId2);
+      DateTime cutoffTime = DateTime.now().subtract(const Duration(hours: 24));
+
+      // Get all messages older than 24 hours
+      QuerySnapshot messagesSnapshot = await _firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .where('time', isLessThan: cutoffTime.toIso8601String())
+          .get();
+
+      // Delete in batch
+      WriteBatch batch = _firestore.batch();
+      for (var doc in messagesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to delete old messages: $e');
+    }
+  }
+
+  // Stream to get current retention mode
+  Stream<ChatRetentionMode> getChatRetentionModeStream(
+    String userId1,
+    String userId2,
+  ) {
+    String chatId = _getChatId(userId1, userId2);
+    return _firestore
+        .collection('chats')
+        .doc(chatId)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return ChatRetentionMode.allTime;
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      return ChatRetentionModeExtension.fromValue(data['retentionMode']);
+    });
+  }
+
+  // Delete a specific message
+  Future<void> deleteMessage(
+    String userId1,
+    String userId2,
+    String messageId,
+  ) async {
+    try {
+      String chatId = _getChatId(userId1, userId2);
+      await _firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .doc(messageId)
+          .delete();
+    } catch (e) {
+      throw Exception('Failed to delete message: $e');
+    }
+  }
+
+  // Delete message for me only (soft delete - add deletedFor field)
+  Future<void> deleteMessageForMe(
+    String userId1,
+    String userId2,
+    String messageId,
+    String currentUserId,
+  ) async {
+    try {
+      String chatId = _getChatId(userId1, userId2);
+      DocumentReference messageRef = _firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .doc(messageId);
+
+      DocumentSnapshot doc = await messageRef.get();
+      if (!doc.exists) return;
+
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      List<String> deletedFor = List<String>.from(data['deletedFor'] ?? []);
+
+      if (!deletedFor.contains(currentUserId)) {
+        deletedFor.add(currentUserId);
+      }
+
+      await messageRef.update({'deletedFor': deletedFor});
+    } catch (e) {
+      throw Exception('Failed to delete message for me: $e');
+    }
+  }
 }
 

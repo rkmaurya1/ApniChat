@@ -12,6 +12,7 @@ class MessageModel {
   final DateTime time;
   final bool isRead;
   final Map<String, bool>? readBy; // Track read status per user in groups
+  final List<String>? deletedFor; // List of user IDs who deleted this message
 
   MessageModel({
     required this.id,
@@ -25,6 +26,7 @@ class MessageModel {
     required this.time,
     this.isRead = false,
     this.readBy,
+    this.deletedFor,
   });
 
   Map<String, dynamic> toMap() {
@@ -40,6 +42,7 @@ class MessageModel {
       'time': time.toIso8601String(),
       'isRead': isRead,
       'readBy': readBy,
+      'deletedFor': deletedFor,
     };
   }
 
@@ -63,7 +66,15 @@ class MessageModel {
       readBy: map['readBy'] != null
           ? Map<String, bool>.from(map['readBy'])
           : null,
+      deletedFor: map['deletedFor'] != null
+          ? List<String>.from(map['deletedFor'])
+          : null,
     );
+  }
+
+  // Check if message is deleted for a specific user
+  bool isDeletedForUser(String userId) {
+    return deletedFor?.contains(userId) ?? false;
   }
 }
 

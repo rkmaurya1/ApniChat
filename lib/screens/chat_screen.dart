@@ -3,10 +3,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'dart:async';
 import '../services/chat_service.dart';
 import '../services/realtime_storage_service.dart';
 import '../models/message_model.dart';
 import '../models/user_model.dart';
+import '../models/chat_model.dart';
 import '../utils/helpers.dart';
 import '../utils/app_theme.dart';
 import '../widgets/realtime_db_image.dart';
@@ -28,7 +30,7 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final _messageController = TextEditingController();
   final _chatService = ChatService();
   final _realtimeStorageService = RealtimeStorageService();
@@ -41,13 +43,109 @@ class _ChatScreenState extends State<ChatScreen> {
   Duration _recordingDuration = Duration.zero;
   String? _recordingPath;
   final Set<String> _markedAsRead = {}; // Track which messages we've already marked as read
+  ChatRetentionMode _currentRetentionMode = ChatRetentionMode.allTime;
+  bool _hasLeftChat = false; // Track if user has left chat for seenAndDelete mode
+  Timer? _cleanupTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadRetentionMode();
+    _startCleanupTimer();
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _cleanupTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _audioRecorder.dispose();
+    // Handle seen and delete when user exits chat
+    if (_currentRetentionMode == ChatRetentionMode.seenAndDelete && _hasLeftChat) {
+      _chatService.deleteSeenMessages(widget.currentUserId, widget.otherUser.uid);
+    }
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Mark that user has left when app goes to background
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _hasLeftChat = true;
+    }
+  }
+
+  Future<void> _loadRetentionMode() async {
+    final mode = await _chatService.getChatRetentionMode(
+      widget.currentUserId,
+      widget.otherUser.uid,
+    );
+    if (mounted) {
+      setState(() {
+        _currentRetentionMode = mode;
+      });
+    }
+  }
+
+  void _startCleanupTimer() {
+    // Run cleanup every hour
+    _cleanupTimer = Timer.periodic(const Duration(hours: 1), (timer) async {
+      if (_currentRetentionMode == ChatRetentionMode.hour24) {
+        try {
+          await _chatService.deleteOldMessages(widget.currentUserId, widget.otherUser.uid);
+        } catch (e) {
+          debugPrint('Cleanup timer error: $e');
+        }
+      }
+    });
+  }
+
+  Future<void> _updateRetentionMode(ChatRetentionMode mode) async {
+    try {
+      await _chatService.updateChatRetentionMode(
+        widget.currentUserId,
+        widget.otherUser.uid,
+        mode,
+      );
+      setState(() {
+        _currentRetentionMode = mode;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text('Chat retention set to: ${mode.displayName}'),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+            backgroundColor: const Color(0xFF10B981),
+          ),
+        );
+      }
+
+      // If switching to 24 hour mode, delete old messages immediately
+      if (mode == ChatRetentionMode.hour24) {
+        await _chatService.deleteOldMessages(widget.currentUserId, widget.otherUser.uid);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update retention mode: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -394,40 +492,176 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _startVoiceCall() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.call, color: Colors.white),
-            const SizedBox(width: 16),
+            Icon(Icons.info_outline, color: Colors.white),
+            SizedBox(width: 16),
             Expanded(
-              child: Text('Calling ${widget.otherUser.name}...'),
+              child: Text('Coming Soon - Voice Call feature is under development'),
             ),
           ],
         ),
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppTheme.primaryColor,
+        duration: Duration(seconds: 3),
+        backgroundColor: Color(0xFF6366F1),
       ),
     );
-    // TODO: Implement voice call functionality
   }
 
-  void _startVideoCall() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
+  void _showDeleteMessageDialog(MessageModel message) {
+    final bool isMyMessage = message.senderId == widget.currentUserId;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
           children: [
-            const Icon(Icons.videocam, color: Colors.white),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text('Starting video call with ${widget.otherUser.name}...'),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.delete_outline, color: Colors.red, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Delete Message',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppTheme.primaryColor,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.delete_sweep, color: AppTheme.primaryColor),
+              title: const Text(
+                'Delete for me',
+                style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Message will be removed from your chat',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _deleteMessageForMe(message);
+              },
+            ),
+            if (isMyMessage) ...[
+              const Divider(color: AppTheme.borderDark),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.delete_forever, color: Colors.red),
+                title: const Text(
+                  'Delete for everyone',
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Message will be removed for all',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteMessageForEveryone(message);
+                },
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          ),
+        ],
       ),
     );
-    // TODO: Implement video call functionality
+  }
+
+  Future<void> _deleteMessageForMe(MessageModel message) async {
+    try {
+      await _chatService.deleteMessageForMe(
+        widget.currentUserId,
+        widget.otherUser.uid,
+        message.id,
+        widget.currentUserId,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 16),
+                Text('Message deleted for you'),
+              ],
+            ),
+            duration: Duration(seconds: 2),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete message: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteMessageForEveryone(MessageModel message) async {
+    try {
+      await _chatService.deleteMessage(
+        widget.currentUserId,
+        widget.otherUser.uid,
+        message.id,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 16),
+                Text('Message deleted for everyone'),
+              ],
+            ),
+            duration: Duration(seconds: 2),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete message: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -528,16 +762,108 @@ class _ChatScreenState extends State<ChatScreen> {
             child: IconButton(
               icon: const Icon(Icons.call, color: AppTheme.primaryColor, size: 22),
               onPressed: _startVoiceCall,
-              tooltip: 'Voice Call',
+              tooltip: 'Voice Call - Coming Soon',
             ),
           ),
           Container(
             margin: const EdgeInsets.only(right: 12),
             decoration: AppTheme.iconButtonDecoration,
-            child: IconButton(
-              icon: const Icon(Icons.videocam, color: AppTheme.primaryColor, size: 22),
-              onPressed: _startVideoCall,
-              tooltip: 'Video Call',
+            child: PopupMenuButton<ChatRetentionMode>(
+              icon: const Icon(Icons.more_vert, color: AppTheme.primaryColor, size: 22),
+              tooltip: 'Chat Settings',
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              color: AppTheme.cardDark,
+              elevation: 8,
+              offset: const Offset(0, 50),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  enabled: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.primaryGradient,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.auto_delete, color: Colors.white, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Auto-Delete Messages',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Divider(color: AppTheme.borderDark, thickness: 1),
+                    ],
+                  ),
+                ),
+                ...ChatRetentionMode.values.map((mode) {
+                  final isSelected = mode == _currentRetentionMode;
+                  return PopupMenuItem<ChatRetentionMode>(
+                    value: mode,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : null,
+                        borderRadius: BorderRadius.circular(12),
+                        border: isSelected
+                            ? Border.all(color: AppTheme.primaryColor, width: 1)
+                            : null,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSelected ? Icons.check_circle : Icons.circle_outlined,
+                            color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  mode.displayName,
+                                  style: TextStyle(
+                                    color: isSelected ? AppTheme.primaryColor : AppTheme.textPrimary,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  mode.description,
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ],
+              onSelected: (ChatRetentionMode mode) {
+                if (mode != _currentRetentionMode) {
+                  _updateRetentionMode(mode);
+                }
+              },
             ),
           ),
         ],
@@ -559,7 +885,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
 
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                // Filter out deleted messages for current user
+                final allMessages = snapshot.data ?? [];
+                final visibleMessages = allMessages
+                    .where((msg) => !msg.isDeletedForUser(widget.currentUserId))
+                    .toList();
+
+                if (visibleMessages.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -612,22 +944,24 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 // Mark all unread messages as read
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _markUnreadMessagesAsRead(snapshot.data!);
+                  _markUnreadMessagesAsRead(visibleMessages);
                 });
 
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
-                  itemCount: snapshot.data!.length,
+                  itemCount: visibleMessages.length,
                   itemBuilder: (context, index) {
-                    MessageModel message = snapshot.data![index];
+                    MessageModel message = visibleMessages[index];
                     bool isMe = message.senderId == widget.currentUserId;
 
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Row(
+                    return GestureDetector(
+                      onLongPress: () => _showDeleteMessageDialog(message),
+                      child: Align(
+                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Row(
                           mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -731,6 +1065,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             if (isMe) const SizedBox(width: 8),
                           ],
                         ),
+                      ),
                       ),
                     );
                   },

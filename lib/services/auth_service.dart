@@ -110,6 +110,8 @@ class AuthService {
         });
       }
     }
+    // Sign out from both Google and Firebase to ensure account picker shows on next login
+    await _googleSignIn.signOut();
     await _auth.signOut();
   }
 

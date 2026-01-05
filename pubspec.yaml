@@ -58,6 +58,9 @@ dependencies:
   path_provider: ^2.1.4
   permission_handler: ^11.3.1
 
+  # Security
+  screen_protector: ^1.4.2
+
 dependency_overrides:
   record_linux: ^1.2.1
 
