@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'dart:async';
 import '../services/chat_service.dart';
 import '../services/realtime_storage_service.dart';
@@ -46,6 +47,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   ChatRetentionMode _currentRetentionMode = ChatRetentionMode.allTime;
   bool _hasLeftChat = false; // Track if user has left chat for seenAndDelete mode
   Timer? _cleanupTimer;
+  bool _showEmojiPicker = false;
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -53,6 +56,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadRetentionMode();
     _startCleanupTimer();
+
+    // Hide emoji picker when keyboard appears
+    _focusNode.addListener(() {
+      if (_focusNode.hasFocus && _showEmojiPicker) {
+        setState(() => _showEmojiPicker = false);
+      }
+    });
   }
 
   @override
@@ -62,6 +72,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _messageController.dispose();
     _scrollController.dispose();
     _audioRecorder.dispose();
+    _focusNode.dispose();
     // Handle seen and delete when user exits chat
     if (_currentRetentionMode == ChatRetentionMode.seenAndDelete && _hasLeftChat) {
       _chatService.deleteSeenMessages(widget.currentUserId, widget.otherUser.uid);
@@ -1152,8 +1163,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               IconButton(
                                 icon: _isUploadingImage
                                     ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
+                                        width: 16,
+                                        height: 16,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                           valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
@@ -1161,20 +1172,23 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                       )
                                     : const Icon(Icons.image_outlined,
                                         color: AppTheme.textSecondary,
-                                        size: 24),
+                                        size: 20),
                                 onPressed: _isUploadingImage || _isRecording || _isUploadingVoice
                                     ? null
                                     : _sendImage,
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(6),
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
                               ),
-                              const SizedBox(width: 4),
                               // Mic button
                               GestureDetector(
-                                onLongPress: _isRecording || _isUploadingVoice ? null : _startRecording,
-                                onTap: _isRecording ? () => _stopRecording(send: true) : null,
+                                onTap: _isRecording || _isUploadingVoice
+                                    ? (_isRecording ? () => _stopRecording(send: true) : null)
+                                    : _startRecording,
                                 child: Container(
-                                  padding: const EdgeInsets.all(8),
+                                  padding: const EdgeInsets.all(6),
                                   decoration: _isRecording
                                       ? const BoxDecoration(
                                           color: Colors.red,
@@ -1183,8 +1197,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                       : null,
                                   child: _isUploadingVoice
                                       ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
+                                          width: 16,
+                                          height: 16,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
                                             valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
@@ -1193,15 +1207,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                       : Icon(
                                           _isRecording ? Icons.stop : Icons.mic,
                                           color: _isRecording ? Colors.white : AppTheme.textSecondary,
-                                          size: 24,
+                                          size: 20,
                                         ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               // Text field
                               Expanded(
                                 child: TextField(
                                   controller: _messageController,
+                                  focusNode: _focusNode,
                                   style: const TextStyle(
                                     color: AppTheme.textPrimary,
                                     fontSize: 15,
@@ -1221,21 +1236,95 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                   enabled: !_isRecording && !_isUploadingVoice,
                                 ),
                               ),
+                              // Emoji button
+                              IconButton(
+                                icon: Icon(
+                                  _showEmojiPicker ? Icons.keyboard : Icons.emoji_emotions_outlined,
+                                  color: _showEmojiPicker ? AppTheme.primaryColor : AppTheme.textSecondary,
+                                  size: 20,
+                                ),
+                                onPressed: _isRecording || _isUploadingVoice
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _showEmojiPicker = !_showEmojiPicker;
+                                        });
+                                        if (_showEmojiPicker) {
+                                          _focusNode.unfocus();
+                                        } else {
+                                          _focusNode.requestFocus();
+                                        }
+                                      },
+                                padding: const EdgeInsets.all(6),
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       // Send button
                       Container(
+                        width: 44,
+                        height: 44,
                         decoration: AppTheme.gradientButtonDecoration,
                         child: IconButton(
-                          icon: const Icon(Icons.send_rounded, color: Colors.white),
+                          icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
                           onPressed: _isRecording || _isUploadingVoice ? null : _sendMessage,
+                          padding: EdgeInsets.zero,
                         ),
                       ),
                     ],
                   ),
+                  // Emoji Picker
+                  if (_showEmojiPicker)
+                    SizedBox(
+                      height: 250,
+                      child: EmojiPicker(
+                        onEmojiSelected: (category, emoji) {
+                          _messageController.text += emoji.emoji;
+                        },
+                        config: Config(
+                          height: 250,
+                          checkPlatformCompatibility: true,
+                          emojiViewConfig: EmojiViewConfig(
+                            backgroundColor: AppTheme.cardDark,
+                            columns: 7,
+                            emojiSizeMax: 28,
+                            verticalSpacing: 0,
+                            horizontalSpacing: 0,
+                            gridPadding: EdgeInsets.zero,
+                            recentsLimit: 28,
+                            replaceEmojiOnLimitExceed: false,
+                            buttonMode: ButtonMode.MATERIAL,
+                          ),
+                          skinToneConfig: const SkinToneConfig(
+                            enabled: true,
+                            dialogBackgroundColor: Color(0xFF2E2E2E),
+                          ),
+                          categoryViewConfig: CategoryViewConfig(
+                            backgroundColor: AppTheme.surfaceDark,
+                            iconColor: AppTheme.textSecondary,
+                            iconColorSelected: AppTheme.primaryColor,
+                            indicatorColor: AppTheme.primaryColor,
+                            backspaceColor: AppTheme.primaryColor,
+                          ),
+                          bottomActionBarConfig: const BottomActionBarConfig(
+                            backgroundColor: AppTheme.surfaceDark,
+                            buttonIconColor: AppTheme.textSecondary,
+                          ),
+                          searchViewConfig: const SearchViewConfig(
+                            backgroundColor: AppTheme.cardDark,
+                            buttonIconColor: Colors.white,
+                            hintText: 'Search emoji...',
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

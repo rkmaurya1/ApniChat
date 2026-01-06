@@ -415,11 +415,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.group,
-                      color: Colors.white,
-                      size: 24,
-                    ),
+                    child: group.groupPhotoUrl != null
+                        ? ClipOval(
+                            child: RealtimeDBImage(
+                              imageRef: group.groupPhotoUrl!,
+                              width: 44,
+                              height: 44,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.group,
+                            color: Colors.white,
+                            size: 24,
+                          ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

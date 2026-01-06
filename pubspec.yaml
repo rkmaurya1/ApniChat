@@ -61,6 +61,9 @@ dependencies:
   # Security
   screen_protector: ^1.4.2
 
+  # Emoji Picker
+  emoji_picker_flutter: ^3.0.0
+
 dependency_overrides:
   record_linux: ^1.2.1
 

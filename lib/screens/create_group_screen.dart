@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../services/auth_service.dart';
 import '../services/group_chat_service.dart';
+import '../services/realtime_storage_service.dart';
 import '../models/user_model.dart';
 import '../widgets/profile_avatar.dart';
 import '../utils/app_theme.dart';
@@ -17,17 +20,47 @@ class CreateGroupScreen extends StatefulWidget {
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _authService = AuthService();
   final _groupChatService = GroupChatService();
+  final _realtimeStorageService = RealtimeStorageService();
   final _groupNameController = TextEditingController();
   final _searchController = TextEditingController();
+  final _imagePicker = ImagePicker();
   final Set<String> _selectedUserIds = {};
   String _searchQuery = '';
   bool _isCreating = false;
+  File? _groupPhoto;
+  bool _isUploadingPhoto = false;
 
   @override
   void dispose() {
     _groupNameController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickGroupPhoto() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 512,
+        maxHeight: 512,
+      );
+
+      if (image != null) {
+        setState(() {
+          _groupPhoto = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _createGroup() async {
@@ -57,10 +90,24 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       final currentUserId = _authService.currentUser?.uid;
       if (currentUserId == null) return;
 
+      String? groupPhotoUrl;
+
+      // Upload group photo if selected
+      if (_groupPhoto != null) {
+        setState(() => _isUploadingPhoto = true);
+        String photoId = await _realtimeStorageService.uploadImageToRealtimeDB(
+          _groupPhoto!,
+          currentUserId,
+        );
+        groupPhotoUrl = 'rtdb://$currentUserId/$photoId';
+        setState(() => _isUploadingPhoto = false);
+      }
+
       String groupId = await _groupChatService.createGroup(
         groupName: _groupNameController.text.trim(),
         createdBy: currentUserId,
         memberIds: _selectedUserIds.toList(),
+        groupPhotoUrl: groupPhotoUrl,
       );
 
       if (mounted) {
@@ -85,7 +132,10 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isCreating = false);
+        setState(() {
+          _isCreating = false;
+          _isUploadingPhoto = false;
+        });
       }
     }
   }
@@ -131,6 +181,71 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                // Group Photo Picker
+                Center(
+                  child: GestureDetector(
+                    onTap: _pickGroupPhoto,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: AppTheme.primaryGradient,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: _groupPhoto != null
+                              ? ClipOval(
+                                  child: Image.file(
+                                    _groupPhoto!,
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.group,
+                                  size: 50,
+                                  color: Colors.white,
+                                ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.primaryGradient,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppTheme.backgroundDark, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _groupPhoto != null ? 'Tap to change photo' : 'Tap to add group photo',
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Container(
                   decoration: AppTheme.cardDecoration,
                   child: TextField(
@@ -143,7 +258,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         margin: const EdgeInsets.all(8),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.15),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(Icons.group, color: AppTheme.primaryColor),
@@ -166,7 +281,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         margin: const EdgeInsets.all(8),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.15),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(Icons.search, color: AppTheme.primaryColor),
@@ -203,7 +318,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryColor.withOpacity(0.3),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -438,9 +553,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       ),
       floatingActionButton: _selectedUserIds.isNotEmpty
           ? FloatingActionButton.extended(
-              onPressed: _isCreating ? null : _createGroup,
+              onPressed: _isCreating || _isUploadingPhoto ? null : _createGroup,
               backgroundColor: const Color(0xFF6366F1),
-              icon: _isCreating
+              icon: _isCreating || _isUploadingPhoto
                   ? const SizedBox(
                       width: 20,
                       height: 20,
@@ -451,7 +566,11 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     )
                   : const Icon(Icons.check, color: Colors.white),
               label: Text(
-                _isCreating ? 'Creating...' : 'Create Group',
+                _isUploadingPhoto
+                    ? 'Uploading photo...'
+                    : _isCreating
+                        ? 'Creating...'
+                        : 'Create Group',
                 style: const TextStyle(color: Colors.white),
               ),
             )

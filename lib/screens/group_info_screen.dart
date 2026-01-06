@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../services/group_chat_service.dart';
+import '../services/realtime_storage_service.dart';
 import '../models/group_model.dart';
 import '../models/user_model.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/realtime_db_image.dart';
+import '../utils/app_theme.dart';
 
 class GroupInfoScreen extends StatefulWidget {
   final String groupId;
@@ -21,8 +26,11 @@ class GroupInfoScreen extends StatefulWidget {
 
 class _GroupInfoScreenState extends State<GroupInfoScreen> {
   final _groupChatService = GroupChatService();
+  final _realtimeStorageService = RealtimeStorageService();
   final _groupNameController = TextEditingController();
+  final _imagePicker = ImagePicker();
   bool _isEditingName = false;
+  bool _isUploadingPhoto = false;
 
   @override
   void dispose() {
@@ -202,6 +210,55 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     }
   }
 
+  Future<void> _updateGroupPhoto() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 512,
+        maxHeight: 512,
+      );
+
+      if (image == null) return;
+
+      setState(() => _isUploadingPhoto = true);
+
+      // Upload to Realtime Database
+      String photoId = await _realtimeStorageService.uploadImageToRealtimeDB(
+        File(image.path),
+        widget.currentUserId,
+      );
+
+      String photoUrl = 'rtdb://${widget.currentUserId}/$photoId';
+
+      // Update group info
+      await _groupChatService.updateGroupInfo(
+        groupId: widget.groupId,
+        groupPhotoUrl: photoUrl,
+      );
+
+      if (mounted) {
+        setState(() => _isUploadingPhoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Group photo updated'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingPhoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update photo: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -243,20 +300,76 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 24),
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                // Group Photo with Edit Button
+                Stack(
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                            blurRadius: 15,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: _isUploadingPhoto
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 3,
+                              ),
+                            )
+                          : group.groupPhotoUrl != null
+                              ? ClipOval(
+                                  child: RealtimeDBImage(
+                                    imageRef: group.groupPhotoUrl!,
+                                    width: 100,
+                                    height: 100,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.group,
+                                  color: Colors.white,
+                                  size: 48,
+                                ),
                     ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.group,
-                    color: Colors.white,
-                    size: 48,
-                  ),
+                    if (isAdmin && !_isUploadingPhoto)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _updateGroupPhoto,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.primaryGradient,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFFF1F5F9),
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 if (_isEditingName)

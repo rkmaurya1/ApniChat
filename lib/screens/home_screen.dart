@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import '../models/chat_model.dart';
 import '../models/group_model.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/realtime_db_image.dart';
 import 'chat_screen.dart';
 import 'group_chat_screen.dart';
 import 'users_screen.dart';
@@ -292,11 +293,19 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              child: const Icon(
-                                Icons.group,
-                                color: Colors.white,
-                                size: 30,
-                              ),
+                              child: group.groupPhotoUrl != null
+                                  ? ClipOval(
+                                      child: RealtimeDBImage(
+                                        imageRef: group.groupPhotoUrl!,
+                                        width: 62,
+                                        height: 62,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.group,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
