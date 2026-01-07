@@ -238,6 +238,33 @@ class ChatService {
     }
   }
 
+  // Delete messages where current user is receiver and has seen them (for seenAndDelete mode)
+  Future<void> deleteMessagesSeenByReceiver(String currentUserId, String otherUserId) async {
+    try {
+      String chatId = _getChatId(currentUserId, otherUserId);
+
+      // Get all messages where:
+      // 1. Current user is the receiver
+      // 2. Message is read (seen)
+      QuerySnapshot messagesSnapshot = await _firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .where('receiverId', isEqualTo: currentUserId)
+          .where('isRead', isEqualTo: true)
+          .get();
+
+      // Delete in batch (this deletes for BOTH users)
+      WriteBatch batch = _firestore.batch();
+      for (var doc in messagesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to delete messages seen by receiver: $e');
+    }
+  }
+
   // Delete messages older than 24 hours (for hour24 mode)
   Future<void> deleteOldMessages(String userId1, String userId2) async {
     try {

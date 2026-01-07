@@ -16,8 +16,9 @@ class ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (photoUrl == null) {
+    if (photoUrl == null || photoUrl!.isEmpty) {
       // No photo - show initials
+      debugPrint('ProfileAvatar: No photoUrl for $userName');
       return CircleAvatar(
         radius: radius,
         child: Text(
@@ -33,19 +34,36 @@ class ProfileAvatar extends StatelessWidget {
     // Check if this is a Realtime DB reference
     if (photoUrl!.startsWith('rtdb://profile/')) {
       final userId = photoUrl!.substring(15); // Remove 'rtdb://profile/'
+      debugPrint('ProfileAvatar: Loading photo for userId: $userId from RTDB');
 
       // Use StreamBuilder for real-time updates! 🔥
       return StreamBuilder<String?>(
         stream: RealtimeStorageService().watchProfilePhoto(userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
+            debugPrint('ProfileAvatar: Waiting for photo data for $userId');
             return CircleAvatar(
               radius: radius,
               child: const CircularProgressIndicator(strokeWidth: 2),
             );
           }
 
+          if (snapshot.hasError) {
+            debugPrint('ProfileAvatar: Error loading photo for $userId: ${snapshot.error}');
+            return CircleAvatar(
+              radius: radius,
+              child: Text(
+                userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                style: TextStyle(
+                  fontSize: radius * 0.6,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          }
+
           if (!snapshot.hasData || snapshot.data == null) {
+            debugPrint('ProfileAvatar: No photo data found for $userId in RTDB');
             // Fallback to initials
             return CircleAvatar(
               radius: radius,
@@ -60,12 +78,14 @@ class ProfileAvatar extends StatelessWidget {
           }
 
           try {
+            debugPrint('ProfileAvatar: Successfully loaded photo for $userId');
             final bytes = base64Decode(snapshot.data!);
             return CircleAvatar(
               radius: radius,
               backgroundImage: MemoryImage(bytes),
             );
           } catch (e) {
+            debugPrint('ProfileAvatar: Error decoding photo for $userId: $e');
             // Error decoding - show initials
             return CircleAvatar(
               radius: radius,

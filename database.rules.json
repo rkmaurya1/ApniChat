@@ -1,0 +1,26 @@
+{
+  "rules": {
+    "profile_photos": {
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "$userId === auth.uid"
+      }
+    },
+    "chat_images": {
+      "$userId": {
+        "$imageId": {
+          ".read": "auth != null",
+          ".write": "$userId === auth.uid"
+        }
+      }
+    },
+    "chat_voices": {
+      "$userId": {
+        "$voiceId": {
+          ".read": "auth != null",
+          ".write": "$userId === auth.uid"
+        }
+      }
+    }
+  }
+}

@@ -31,7 +31,7 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
+class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   final _chatService = ChatService();
   final _realtimeStorageService = RealtimeStorageService();
@@ -45,7 +45,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   String? _recordingPath;
   final Set<String> _markedAsRead = {}; // Track which messages we've already marked as read
   ChatRetentionMode _currentRetentionMode = ChatRetentionMode.allTime;
-  bool _hasLeftChat = false; // Track if user has left chat for seenAndDelete mode
   Timer? _cleanupTimer;
   bool _showEmojiPicker = false;
   final FocusNode _focusNode = FocusNode();
@@ -53,7 +52,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _loadRetentionMode();
     _startCleanupTimer();
 
@@ -67,26 +65,21 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _cleanupTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _audioRecorder.dispose();
     _focusNode.dispose();
-    // Handle seen and delete when user exits chat
-    if (_currentRetentionMode == ChatRetentionMode.seenAndDelete && _hasLeftChat) {
-      _chatService.deleteSeenMessages(widget.currentUserId, widget.otherUser.uid);
-    }
-    super.dispose();
-  }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    // Mark that user has left when app goes to background
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _hasLeftChat = true;
+    // Delete seen messages when receiver exits (for seenAndDelete mode)
+    if (_currentRetentionMode == ChatRetentionMode.seenAndDelete) {
+      _chatService.deleteMessagesSeenByReceiver(
+        widget.currentUserId,
+        widget.otherUser.uid,
+      );
     }
+
+    super.dispose();
   }
 
   Future<void> _loadRetentionMode() async {
