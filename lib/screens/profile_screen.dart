@@ -22,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _realtimeStorageService = RealtimeStorageService();
   final _imagePicker = ImagePicker();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   UserModel? _currentUser;
   bool _isLoading = true;
   bool _isUpdating = false;
@@ -35,6 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -48,6 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _isLoading = false;
             if (user != null) {
               _nameController.text = user.name;
+              _phoneController.text = user.phoneNumber ?? '';
             }
           });
         }
@@ -67,6 +70,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .doc(_currentUser!.uid)
           .update({
         'name': _nameController.text.trim(),
+        'phoneNumber': _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
       });
 
       if (mounted) {
@@ -332,6 +338,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(Icons.person_outline, color: AppTheme.primaryColor),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _phoneController,
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number',
+                        labelStyle: const TextStyle(color: AppTheme.textSecondary),
+                        hintText: 'Enter your phone number',
+                        hintStyle: const TextStyle(color: AppTheme.textMuted),
+                        prefixIcon: Container(
+                          margin: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.phone_outlined, color: AppTheme.primaryColor),
                         ),
                       ),
                     ),
